@@ -488,7 +488,7 @@ function CircuitRequestController.create_gui(player, controller_entity)
     title_spacer.drag_target = main_frame
     
     -- Content area
-    local content = main_frame.add{type = "frame", direction = "vertical", style = "inside_shallow_frame"}
+    local content = main_frame.add{type = "frame", name = "inside_shallow_frame", direction = "vertical", style = "inside_shallow_frame"}
     
     if not controller then
         -- Controller not registered yet
@@ -675,8 +675,19 @@ function CircuitRequestController.handle_gui_click(event)
         local gui = player.gui.screen["circuit-controller-gui"]
         if not gui then return end
         
-        local group_dropdown = gui["inside_shallow_frame"]["group-dropdown"]
-        local planet_textfield = gui["inside_shallow_frame"]["planet-textfield"]
+        -- Find the textfield and dropdown elements
+        local content_frame = nil
+        for _, child in pairs(gui.children) do
+            if child.name == "inside_shallow_frame" then
+                content_frame = child
+                break
+            end
+        end
+        
+        if not content_frame then return end
+        
+        local group_dropdown = content_frame["group-dropdown"]
+        local planet_textfield = content_frame["planet-textfield"]
         
         if not group_dropdown or not planet_textfield then return end
         
@@ -743,7 +754,18 @@ function CircuitRequestController.handle_gui_click(event)
         local gui = player.gui.screen["circuit-controller-gui"]
         if not gui then return end
         
-        local multiplier_textfield = gui["inside_shallow_frame"]["buffer-multiplier-textfield"]
+        -- Find the content frame
+        local content_frame = nil
+        for _, child in pairs(gui.children) do
+            if child.name == "inside_shallow_frame" then
+                content_frame = child
+                break
+            end
+        end
+        
+        if not content_frame then return end
+        
+        local multiplier_textfield = content_frame["buffer-multiplier-textfield"]
         if not multiplier_textfield then return end
         
         local multiplier = tonumber(multiplier_textfield.text)
@@ -812,7 +834,7 @@ function CircuitRequestController.create_item_edit_gui(player, controller_unit_n
     storage.gui_edit_items = storage.gui_edit_items or {}
     storage.gui_edit_items[player.index] = item_name
     
-    local content = edit_frame.add{type = "frame", direction = "vertical", style = "inside_shallow_frame"}
+    local content = edit_frame.add{type = "frame", name = "inside_shallow_frame", direction = "vertical", style = "inside_shallow_frame"}
     
     -- Item display
     local item_flow = content.add{type = "flow", direction = "horizontal"}
@@ -883,8 +905,19 @@ function CircuitRequestController.handle_save_item_override(player, event)
     local gui = player.gui.screen["item-edit-gui"]
     if not gui then return end
     
-    local mult_field = gui["inside_shallow_frame"]["item-multiplier-textfield"]
-    local max_field = gui["inside_shallow_frame"]["item-maximum-textfield"]
+    -- Find the content frame
+    local content_frame = nil
+    for _, child in pairs(gui.children) do
+        if child.name == "inside_shallow_frame" then
+            content_frame = child
+            break
+        end
+    end
+    
+    if not content_frame then return end
+    
+    local mult_field = content_frame["item-multiplier-textfield"]
+    local max_field = content_frame["item-maximum-textfield"]
     
     if not mult_field then return end
     
