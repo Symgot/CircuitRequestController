@@ -1,0 +1,103 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Read mod info
+        id: mod_info
+        run: |
+          MOD_NAME=$(jq -r '.name' info.json)
+          MOD_VERSION=$(jq -r '.version' info.json)
+          echo "mod_name=$MOD_NAME" >> $GITHUB_OUTPUT
+          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+          echo "release_name=${MOD_NAME}_${MOD_VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: Check if release exists
+        id: check_release
+        run: |
+          if gh release view "v${{ steps.mod_info.outputs.mod_version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Increment version if exists
+        if: steps.check_release.outputs.exists == 'true'
+        id: increment_version
+        run: |
+          CURRENT_VERSION="${{ steps.mod_info.outputs.mod_version }}"
+          
+          # Split version into major, minor, patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          
+          # Update info.json
+          jq --arg version "$NEW_VERSION" '.version = $version' info.json > info.json.tmp
+          mv info.json.tmp info.json
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Commit the change
+          git add info.json
+          git commit -m "Bump version to $NEW_VERSION"
+          git push
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "incremented=true" >> $GITHUB_OUTPUT
+      
+      - name: Trigger workflow again if version was incremented
+        if: steps.increment_version.outputs.incremented == 'true'
+        run: |
+          gh workflow run release.yml
+          echo "Version was incremented to ${{ steps.increment_version.outputs.new_version }}. Workflow will run again automatically."
+          exit 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Create release package
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          RELEASE_NAME="${{ steps.mod_info.outputs.release_name }}"
+          
+          # Create directory structure
+          mkdir -p "$RELEASE_NAME"
+          
+          # Copy all files except .git, .github, and build artifacts
+          rsync -av --exclude='.git' --exclude='.github' --exclude='*.zip' --exclude='*.tmp' . "$RELEASE_NAME/"
+          
+          # Create zip archive
+          zip -r "${RELEASE_NAME}.zip" "$RELEASE_NAME"
+          
+          echo "Created ${RELEASE_NAME}.zip"
+      
+      - name: Create GitHub Release
+        if: steps.check_release.outputs.exists == 'false'
+        run: |
+          RELEASE_NAME="${{ steps.mod_info.outputs.release_name }}"
+          VERSION="${{ steps.mod_info.outputs.mod_version }}"
+          
+          gh release create "v${VERSION}" \
+            "${RELEASE_NAME}.zip" \
+            --title "Release v${VERSION}" \
+            --notes "Release of ${{ steps.mod_info.outputs.mod_name }} version ${VERSION}"
+        env:
+          GH_TOKEN: ${{ github.token }}

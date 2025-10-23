@@ -1,0 +1,10 @@
+# Build artifacts
+*.zip
+
+# Temporary files
+*.tmp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
