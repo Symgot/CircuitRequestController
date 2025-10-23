@@ -1,0 +1,11 @@
+{
+  "name": "CircuitRequestController",
+  "version": "1.0.0",
+  "factorio_version": "2.0",
+  "title": "Circuit Request Controller",
+  "author": "Symgot",
+  "description": "A circuit network controller for logistics requests. Allows you to control logistics requests via circuit network signals. Does not require Space Age.",
+  "dependencies": [
+    "base >= 2.0.0"
+  ]
+}
