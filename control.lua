@@ -79,6 +79,16 @@ script.on_event(defines.events.on_gui_closed, function(event)
         if player.gui.screen["circuit-controller-gui"] then
             player.gui.screen["circuit-controller-gui"].destroy()
         end
+        if player.gui.screen["item-edit-gui"] then
+            player.gui.screen["item-edit-gui"].destroy()
+        end
+        -- Clean up player-specific GUI storage
+        if storage.gui_controllers then
+            storage.gui_controllers[player.index] = nil
+        end
+        if storage.gui_edit_items then
+            storage.gui_edit_items[player.index] = nil
+        end
     end
 end)
 
