@@ -65,8 +65,8 @@ script.on_event(defines.events.on_gui_opened, function(event)
         if remote.interfaces["SpaceShipMod"] and remote.interfaces["SpaceShipMod"]["create_circuit_controller_gui"] then
             remote.call("SpaceShipMod", "create_circuit_controller_gui", player, event.entity)
         else
-            -- Fallback: show a simple message
-            player.print("[Circuit Request Controller] GUI not available. Install SpaceShipMod for full GUI support.")
+            -- Use built-in GUI
+            CircuitRequestController.create_gui(player, event.entity)
         end
     end
 end)
@@ -79,6 +79,16 @@ script.on_event(defines.events.on_gui_closed, function(event)
         if player.gui.screen["circuit-controller-gui"] then
             player.gui.screen["circuit-controller-gui"].destroy()
         end
+        if player.gui.screen["item-edit-gui"] then
+            player.gui.screen["item-edit-gui"].destroy()
+        end
+        -- Clean up player-specific GUI storage
+        if storage.gui_controllers then
+            storage.gui_controllers[player.index] = nil
+        end
+        if storage.gui_edit_items then
+            storage.gui_edit_items[player.index] = nil
+        end
     end
 end)
 
@@ -86,7 +96,17 @@ script.on_event(defines.events.on_gui_click, function(event)
     -- Try to use SpaceShipMod's GUI handler if available
     if remote.interfaces["SpaceShipMod"] and remote.interfaces["SpaceShipMod"]["handle_circuit_controller_buttons"] then
         remote.call("SpaceShipMod", "handle_circuit_controller_buttons", event)
+    else
+        CircuitRequestController.handle_gui_click(event)
     end
+end)
+
+script.on_event(defines.events.on_gui_text_changed, function(event)
+    CircuitRequestController.handle_gui_text_changed(event)
+end)
+
+script.on_event(defines.events.on_gui_confirmed, function(event)
+    CircuitRequestController.handle_gui_confirmed(event)
 end)
 
 -- Process all circuit controllers periodically
@@ -146,5 +166,25 @@ remote.add_interface("CircuitRequestController", {
     -- Get logistics group data
     get_group = function(group_id)
         return CircuitRequestController.get_group(group_id)
+    end,
+    
+    -- Set default buffer multiplier for a controller
+    set_controller_buffer_multiplier = function(controller_unit_number, multiplier)
+        return CircuitRequestController.set_controller_buffer_multiplier(controller_unit_number, multiplier)
+    end,
+    
+    -- Set item-specific override
+    set_item_override = function(controller_unit_number, item_name, override_data)
+        return CircuitRequestController.set_item_override(controller_unit_number, item_name, override_data)
+    end,
+    
+    -- Remove item override
+    remove_item_override = function(controller_unit_number, item_name)
+        return CircuitRequestController.remove_item_override(controller_unit_number, item_name)
+    end,
+    
+    -- Get all item overrides
+    get_item_overrides = function(controller_unit_number)
+        return CircuitRequestController.get_item_overrides(controller_unit_number)
     end
 })

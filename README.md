@@ -17,8 +17,39 @@ A standalone Factorio mod that enables circuit network control of logistics requ
 1. Research "Circuit Request Controller" technology
 2. Build a Circuit Request Controller entity
 3. Connect red or green circuit wires to the controller
-4. Send item signals where the signal value represents the requested quantity
-   - Example: Iron plate signal with value 1000 = request 1000 iron plates
+4. Send item signals where the signal value represents the **minimum** requested quantity
+   - Example: Iron plate signal with value 1000 = request minimum 1000 iron plates
+   - The controller automatically calculates maximum quantity based on the buffer multiplier
+   - Default buffer multiplier is 2.0 (so max = min × 2.0)
+
+### GUI Configuration
+
+When you open a Circuit Request Controller entity, you can:
+
+1. **Register the Controller** (if not already registered):
+   - Select a logistics group from the dropdown
+   - Specify the target planet (default: nauvis)
+   - Click "Register Controller"
+
+2. **Configure Buffer Multiplier**:
+   - Set the default buffer multiplier for all items
+   - This determines: `Maximum Quantity = Minimum Quantity × Buffer Multiplier`
+   - Default is 2.0, but you can set any value > 0
+
+3. **View Current Requests**:
+   - See all items being requested via circuit signals
+   - View minimum and maximum quantities for each item
+   - Items marked with "*" have custom overrides
+
+4. **Item-Specific Overrides**:
+   - Click "Edit" next to any item to set custom values
+   - Set a custom buffer multiplier for that specific item
+   - Or set a fixed maximum quantity (overrides the multiplier calculation)
+   - Entity-level adjustments have higher priority than controller settings
+
+5. **Reset Overrides**:
+   - Click "Reset" next to items with overrides
+   - This reverts the item back to using controller default settings
 
 ### With TransferRequestSystem Mod
 
@@ -50,6 +81,34 @@ local group_id = remote.call("CircuitRequestController", "create_logistics_group
 -- Register a controller
 local success, message = remote.call("CircuitRequestController", "register_controller", 
     controller_entity, group_id, "nauvis")
+
+-- Set default buffer multiplier for a controller
+local success = remote.call("CircuitRequestController", "set_controller_buffer_multiplier",
+    controller_unit_number, 3.0)
+
+-- Set item-specific override
+local success = remote.call("CircuitRequestController", "set_item_override",
+    controller_unit_number, "iron-plate", {
+        buffer_multiplier = 2.5,  -- Optional: custom multiplier
+        maximum_quantity = 5000    -- Optional: fixed maximum
+    })
+
+-- Remove item override (revert to controller default)
+local success = remote.call("CircuitRequestController", "remove_item_override",
+    controller_unit_number, "iron-plate")
+
+-- Get all item overrides for a controller
+local overrides = remote.call("CircuitRequestController", "get_item_overrides",
+    controller_unit_number)
+
+-- Check if a group is locked
+local is_locked = remote.call("CircuitRequestController", "is_group_locked", group_id)
+
+-- Get logistics group data
+local group = remote.call("CircuitRequestController", "get_group", group_id)
+
+-- Get controller data
+local controller = remote.call("CircuitRequestController", "get_controller", controller_unit_number)
 
 -- And more...
 ```
