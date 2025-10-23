@@ -9,9 +9,25 @@
     - Logistics group management and selection
     - Planet selection for target transfers
     - Automatic request quantity updates from circuit signals
+    - Minimum/Maximum inventory level support with buffer multipliers
+    - Per-item override support for fine-grained control
     - Group locking when controlled by a circuit block
     - Only one block can control a group globally
     - Entities can remove/deactivate groups at any time
+    - Built-in GUI for configuration (no external mod required)
+    
+    Minimum/Maximum Inventory Levels:
+    - Circuit signals represent the MINIMUM requested quantity
+    - Maximum quantity is calculated as: minimum × buffer_multiplier
+    - Default buffer multiplier is 2.0 (configurable per controller)
+    - Each item can have a custom buffer multiplier override
+    - Or a fixed maximum quantity override
+    - Entity-level overrides take priority over controller defaults
+    
+    Compatibility:
+    - Works with Factorio 2.0 (with or without Space Age)
+    - Space Age features (platforms) are optional
+    - Compatible with TransferRequestSystem mod (optional)
 ]]
 
 local CircuitRequestController = {}
