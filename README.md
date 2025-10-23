@@ -61,6 +61,24 @@ local success, message = remote.call("CircuitRequestController", "register_contr
 - **Optional**: TransferRequestSystem mod for platform transfers
 - **Optional**: SpaceShipMod for full GUI support
 
+## Development
+
+### Creating a Release
+
+To create a release:
+
+1. Go to the **Actions** tab in the GitHub repository
+2. Select the **Create Release** workflow
+3. Click **Run workflow**
+4. The workflow will automatically:
+   - Read the version from `info.json`
+   - Check if a release with that version already exists
+   - If it exists, increment the version by 0.0.1 and retry automatically
+   - Create a zip file with the structure: `ModName_Version/` containing all mod files
+   - Upload the zip as a GitHub release
+
+The release package follows Factorio's mod structure with translations in `locale/en/` directory.
+
 ## License
 
 GPL-3.0
