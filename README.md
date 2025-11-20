@@ -139,11 +139,41 @@ local controller = remote.call("CircuitRequestController", "get_controller", con
 ## Requirements
 
 - **Factorio**: Version 2.0.0 or higher
-- **Dependencies**: None (works standalone)
+- **Dependencies**: 
+  - Required: `base >= 2.0.0`
+  - Optional: `flib >= 0.16.5` (Factorio Library - included in development, auto-installed in releases)
 - **Optional**: TransferRequestSystem mod for platform transfers
 - **Optional**: SpaceShipMod for full GUI support
 
 ## Development
+
+### Setting up the Development Environment
+
+This mod uses [flib (Factorio Library)](https://mods.factorio.com/mod/flib) for utility functions. For development:
+
+1. **Extract flib**: The `flib_0.16.5.zip` file is included in the repository. Extract it for development:
+   ```bash
+   unzip flib_0.16.5.zip
+   ```
+   The extracted `flib_0.16.5/` directory is git-ignored and only used during development.
+
+2. **VS Code Setup**: This project is configured for the [Factorio Mod Debug extension](https://marketplace.visualstudio.com/items?itemName=justarandomgeek.factoriomod-debug):
+   - Install the "Factorio Mod Debug" extension in VS Code
+   - Set the `FACTORIO_PATH` environment variable to your Factorio installation directory
+   - Use F5 to launch Factorio with debugging enabled
+   - Set breakpoints in Lua code for debugging
+
+3. **Dependencies**: 
+   - For development: Use the extracted flib from the repository
+   - For releases: flib is listed as an optional dependency in `info.json`
+
+### VS Code Tasks
+
+The project includes several VS Code tasks (Ctrl+Shift+P → "Tasks: Run Task"):
+
+- **Extract flib**: Extracts the flib library for development
+- **Clean flib**: Removes the extracted flib directory
+- **Package Mod**: Creates a release zip file (excluding development files)
 
 ### Creating a Release
 

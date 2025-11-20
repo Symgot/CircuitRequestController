@@ -6,6 +6,7 @@
   "author": "Symgot",
   "description": "A circuit network controller for logistics requests. Allows you to control logistics requests via circuit network signals. Does not require Space Age.",
   "dependencies": [
-    "base >= 2.0.0"
+    "base >= 2.0.0",
+    "? flib >= 0.16.5"
   ]
 }

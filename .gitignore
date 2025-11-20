@@ -1,5 +1,9 @@
 # Build artifacts
 *.zip
+!flib_0.16.5.zip
+
+# Extracted flib (for development only)
+flib_0.16.5/
 
 # Temporary files
 *.tmp
