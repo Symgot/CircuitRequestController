@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "factoriomod",
+      "request": "launch",
+      "name": "Factorio Mod Debug",
+      "factorioPath": "${env:FACTORIO_PATH}",
+      "modsPath": "${workspaceFolder}/..",
+      "adjustMods": {
+        "CircuitRequestController": true
+      },
+      "allowDisableBaseMod": false,
+      "hookMode": "debug",
+      "hookLog": false,
+      "hookControl": true,
+      "hookData": true,
+      "hookSettings": false
+    },
+    {
+      "type": "factoriomod",
+      "request": "launch",
+      "name": "Factorio Mod Debug (Profile)",
+      "factorioPath": "${env:FACTORIO_PATH}",
+      "modsPath": "${workspaceFolder}/..",
+      "adjustMods": {
+        "CircuitRequestController": true
+      },
+      "allowDisableBaseMod": false,
+      "hookMode": "profile",
+      "hookLog": false,
+      "hookControl": true,
+      "hookData": true,
+      "hookSettings": false
+    },
+    {
+      "type": "factoriomod",
+      "request": "launch",
+      "name": "Factorio Mod Debug (Data Stage Only)",
+      "factorioPath": "${env:FACTORIO_PATH}",
+      "modsPath": "${workspaceFolder}/..",
+      "adjustMods": {
+        "CircuitRequestController": true
+      },
+      "allowDisableBaseMod": false,
+      "hookMode": "debug",
+      "hookLog": false,
+      "hookControl": false,
+      "hookData": true,
+      "hookSettings": false,
+      "runningBreakpoints": false
+    }
+  ]
+}

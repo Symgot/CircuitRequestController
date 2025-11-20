@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Package Mod",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd .. && zip -r CircuitRequestController_${grep -oP '(?<=\"version\": \")[^\"]*' CircuitRequestController/info.json}.zip CircuitRequestController -x '*.git*' -x '*flib_0.16.5/*' -x '*.vscode/*'"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Extract flib",
+      "type": "shell",
+      "command": "unzip",
+      "args": [
+        "-q",
+        "-o",
+        "flib_0.16.5.zip"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Clean flib",
+      "type": "shell",
+      "command": "rm",
+      "args": [
+        "-rf",
+        "flib_0.16.5"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ]
+}

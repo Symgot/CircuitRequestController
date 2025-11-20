@@ -1,0 +1,43 @@
+{
+  // Factorio Mod Development Settings
+  "factorio.version": {
+    "factorio": "2.0",
+    "space-age": "2.0"
+  },
+  "factorio.modsPath": "${workspaceFolder}/..",
+  
+  // Lua Language Server Settings
+  "Lua.runtime.version": "Lua 5.2",
+  "Lua.diagnostics.globals": [
+    "data",
+    "defines",
+    "game",
+    "global",
+    "storage",
+    "script",
+    "remote",
+    "commands",
+    "settings",
+    "rcon",
+    "rendering",
+    "mods",
+    "serpent",
+    "util",
+    "table_size",
+    "log"
+  ],
+  "Lua.workspace.library": [
+    "${3rd}/luassert/library",
+    "${3rd}/busted/library"
+  ],
+  "Lua.workspace.checkThirdParty": false,
+  
+  // Editor Settings
+  "files.associations": {
+    "*.lua": "lua",
+    "*.cfg": "properties"
+  },
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false
+}
