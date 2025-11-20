@@ -122,6 +122,10 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
 end)
 
+script.on_event(defines.events.on_gui_checked_state_changed, function(event)
+    CircuitRequestController.handle_gui_checked_state_changed(event)
+end)
+
 script.on_event(defines.events.on_gui_text_changed, function(event)
     CircuitRequestController.handle_gui_text_changed(event)
 end)
@@ -207,5 +211,20 @@ remote.add_interface("CircuitRequestController", {
     -- Get all item overrides
     get_item_overrides = function(controller_unit_number)
         return CircuitRequestController.get_item_overrides(controller_unit_number)
+    end,
+    
+    -- Update multipliers for a locked group (without changing items)
+    update_group_multipliers = function(group_id, item_multipliers)
+        return CircuitRequestController.update_group_multipliers(group_id, item_multipliers)
+    end,
+    
+    -- Enable/disable specific items in a group
+    set_item_enabled = function(group_id, item_name, enabled)
+        return CircuitRequestController.set_item_enabled(group_id, item_name, enabled)
+    end,
+    
+    -- Check if an item is enabled in a group
+    is_item_enabled = function(group_id, item_name)
+        return CircuitRequestController.is_item_enabled(group_id, item_name)
     end
 })

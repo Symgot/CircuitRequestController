@@ -277,24 +277,29 @@ function CircuitRequestController.sync_group_to_transfer_system(group_id)
     
     -- Apply new requests from the group
     for item_name, request_data in pairs(group.requests) do
-        -- Check if TransferRequest supports maximum_quantity parameter (Space Age feature)
-        local success, err = pcall(function()
-            TransferRequest.register_request(
-                platform,
-                item_name,
-                request_data.minimum_quantity,
-                request_data.maximum_quantity or request_data.requested_quantity
-            )
-        end)
+        -- Check if item is enabled (default to true if not specified)
+        local enabled = request_data.enabled ~= false
         
-        if not success then
-            -- Fallback for older API without maximum_quantity
-            TransferRequest.register_request(
-                platform,
-                item_name,
-                request_data.minimum_quantity,
-                request_data.requested_quantity
-            )
+        if enabled then
+            -- Check if TransferRequest supports maximum_quantity parameter (Space Age feature)
+            local success, err = pcall(function()
+                TransferRequest.register_request(
+                    platform,
+                    item_name,
+                    request_data.minimum_quantity,
+                    request_data.maximum_quantity or request_data.requested_quantity
+                )
+            end)
+            
+            if not success then
+                -- Fallback for older API without maximum_quantity
+                TransferRequest.register_request(
+                    platform,
+                    item_name,
+                    request_data.minimum_quantity,
+                    request_data.requested_quantity
+                )
+            end
         end
     end
     
@@ -410,6 +415,53 @@ end
 function CircuitRequestController.get_group(group_id)
     storage.logistics_groups = storage.logistics_groups or {}
     return storage.logistics_groups[group_id]
+end
+
+-- Update multipliers for a locked group (without changing items)
+-- This allows adjusting multipliers even when the group is locked
+function CircuitRequestController.update_group_multipliers(group_id, item_multipliers)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group then return false, "Group not found" end
+    
+    -- Update multipliers for existing items only
+    for item_name, multiplier in pairs(item_multipliers) do
+        if group.requests[item_name] then
+            local request = group.requests[item_name]
+            local new_max = math.floor(request.minimum_quantity * multiplier)
+            request.maximum_quantity = new_max
+        end
+    end
+    
+    return true
+end
+
+-- Enable/disable specific items in a group without removing them
+function CircuitRequestController.set_item_enabled(group_id, item_name, enabled)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group then return false, "Group not found" end
+    
+    if not group.requests[item_name] then
+        return false, "Item not in group"
+    end
+    
+    -- Add enabled flag to request
+    group.requests[item_name].enabled = enabled
+    
+    return true
+end
+
+-- Check if an item is enabled in a group
+function CircuitRequestController.is_item_enabled(group_id, item_name)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group or not group.requests[item_name] then
+        return false
+    end
+    
+    -- Default to enabled if not specified
+    return group.requests[item_name].enabled ~= false
 end
 
 -- Set default buffer multiplier for a controller
@@ -674,11 +726,12 @@ function CircuitRequestController.create_gui(player, controller_entity)
                 
                 local request_table = scroll_pane.add{
                     type = "table",
-                    column_count = 6,
+                    column_count = 7,
                     name = "request-table"
                 }
                 
                 -- Headers
+                request_table.add{type = "label", caption = {"gui.enabled"}, style = "bold_label"}
                 request_table.add{type = "label", caption = {"gui.item"}, style = "bold_label"}
                 request_table.add{type = "label", caption = {"gui.minimum"}, style = "bold_label"}
                 request_table.add{type = "label", caption = {"gui.maximum"}, style = "bold_label"}
@@ -688,6 +741,14 @@ function CircuitRequestController.create_gui(player, controller_entity)
                 
                 -- Items
                 for item_name, request_data in pairs(group.requests) do
+                    -- Enabled checkbox
+                    local is_enabled = request_data.enabled ~= false
+                    request_table.add{
+                        type = "checkbox",
+                        name = "enable-item-" .. item_name,
+                        state = is_enabled
+                    }
+                    
                     -- Item sprite
                     if game.item_prototypes[item_name] then
                         request_table.add{
@@ -1141,6 +1202,49 @@ end
 -- Handle GUI confirmed events (Enter key pressed)
 function CircuitRequestController.handle_gui_confirmed(event)
     -- Currently no special handling needed
+end
+
+-- Handle GUI checkbox state changed events
+function CircuitRequestController.handle_gui_checked_state_changed(event)
+    local player = game.get_player(event.player_index)
+    if not player or not player.valid then return end
+    
+    local element = event.element
+    if not element or not element.valid then return end
+    
+    -- Check if this is an enable-item checkbox
+    if element.name:match("^enable%-item%-") then
+        local item_name = element.name:sub(13)
+        
+        storage.gui_controllers = storage.gui_controllers or {}
+        local controller_unit_number = storage.gui_controllers[player.index]
+        if not controller_unit_number then return end
+        
+        storage.circuit_controllers = storage.circuit_controllers or {}
+        local controller = storage.circuit_controllers[controller_unit_number]
+        if not controller then return end
+        
+        -- Update the item enabled state
+        local success, err = CircuitRequestController.set_item_enabled(
+            controller.group_id,
+            item_name,
+            element.state
+        )
+        
+        if success then
+            -- Re-sync to transfer system
+            CircuitRequestController.sync_group_to_transfer_system(controller.group_id)
+            
+            -- Show confirmation message
+            if element.state then
+                player.print({"gui.item-enabled", game.item_prototypes[item_name] and game.item_prototypes[item_name].localised_name or item_name})
+            else
+                player.print({"gui.item-disabled", game.item_prototypes[item_name] and game.item_prototypes[item_name].localised_name or item_name})
+            end
+        else
+            player.print(err)
+        end
+    end
 end
 
 return CircuitRequestController
