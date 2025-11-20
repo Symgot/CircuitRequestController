@@ -61,6 +61,9 @@ script.on_event(defines.events.on_gui_opened, function(event)
     if not player or not player.valid then return end
     
     if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
+        -- Close the default entity GUI that was opened
+        player.opened = nil
+        
         -- Try to use SpaceShipMod's GUI if available
         if remote.interfaces["SpaceShipMod"] and remote.interfaces["SpaceShipMod"]["create_circuit_controller_gui"] then
             remote.call("SpaceShipMod", "create_circuit_controller_gui", player, event.entity)
@@ -75,6 +78,24 @@ script.on_event(defines.events.on_gui_closed, function(event)
     local player = game.get_player(event.player_index)
     if not player or not player.valid then return end
     
+    -- Handle closing of our custom GUIs (screen elements)
+    if event.element and event.element.valid then
+        if event.element.name == "circuit-controller-gui" then
+            event.element.destroy()
+            -- Clean up player-specific GUI storage
+            if storage.gui_controllers then
+                storage.gui_controllers[player.index] = nil
+            end
+        elseif event.element.name == "item-edit-gui" then
+            event.element.destroy()
+            -- Clean up edit item storage
+            if storage.gui_edit_items then
+                storage.gui_edit_items[player.index] = nil
+            end
+        end
+    end
+    
+    -- Handle entity GUI closed (shouldn't happen since we override it, but just in case)
     if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
         if player.gui.screen["circuit-controller-gui"] then
             player.gui.screen["circuit-controller-gui"].destroy()
