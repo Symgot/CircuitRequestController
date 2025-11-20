@@ -2,6 +2,12 @@
 
 A standalone Factorio mod that enables circuit network control of logistics requests.
 
+## Documentation
+
+- **[Setup Guide](SETUP.md)** - Detailed instructions for setting up the development environment
+- **[Testing Guide](TESTING.md)** - Manual test cases and debugging tips
+- **[Usage Guide](#usage)** - How to use the mod in Factorio
+
 ## Features
 
 - **Circuit Network Integration**: Control logistics requests via circuit signals
