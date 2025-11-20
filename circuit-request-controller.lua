@@ -30,6 +30,10 @@
     - Compatible with TransferRequestSystem mod (optional)
 ]]
 
+-- Import flib modules for better mod compatibility
+local flib_gui = require("__flib__.gui")
+local flib_table = require("__flib__.table")
+
 local CircuitRequestController = {}
 
 -- Constants for configuration
@@ -537,198 +541,227 @@ function CircuitRequestController.create_gui(player, controller_entity)
     storage.gui_controllers = storage.gui_controllers or {}
     storage.gui_controllers[player.index] = controller_entity.unit_number
     
-    -- Create main frame
-    local main_frame = player.gui.screen.add{
+    -- Create main frame using flib.gui for better mod compatibility
+    local elems = {}
+    local main_frame = flib_gui.add(player.gui.screen, {
         type = "frame",
         name = "circuit-controller-gui",
-        direction = "vertical"
-    }
-    main_frame.auto_center = true
-    
-    -- Title bar
-    local title_bar = main_frame.add{
-        type = "flow",
-        direction = "horizontal"
-    }
-    title_bar.style.horizontal_spacing = 8
-    title_bar.drag_target = main_frame
-    
-    title_bar.add{
-        type = "label",
-        caption = {"gui.circuit-controller-title"},
-        style = "frame_title",
-        ignored_by_interaction = true
-    }
-    
-    local filler = title_bar.add{
-        type = "empty-widget",
-        style = "draggable_space_header"
-    }
-    filler.style.horizontally_stretchable = true
-    filler.style.height = 24
-    filler.drag_target = main_frame
-    
-    -- Content area
-    local content = main_frame.add{
-        type = "frame",
-        name = "content_frame",
         direction = "vertical",
-        style = "inside_shallow_frame"
-    }
-    content.style.padding = 12
+        elem_mods = {auto_center = true},
+        {
+            -- Title bar
+            type = "flow",
+            direction = "horizontal",
+            style_mods = {horizontal_spacing = 8},
+            drag_target = "circuit-controller-gui",
+            {
+                type = "label",
+                caption = {"gui.circuit-controller-title"},
+                style = "frame_title",
+                elem_mods = {ignored_by_interaction = true}
+            },
+            {
+                type = "empty-widget",
+                style = "draggable_space_header",
+                style_mods = {
+                    horizontally_stretchable = true,
+                    height = 24
+                },
+                drag_target = "circuit-controller-gui"
+            }
+        },
+        {
+            -- Content area
+            type = "frame",
+            name = "content_frame",
+            direction = "vertical",
+            style = "inside_shallow_frame",
+            style_mods = {padding = 12}
+        }
+    }, elems)
+    
+    local content = elems.content_frame
     
     if not controller then
         -- Controller not registered yet
-        content.add{
-            type = "label",
-            caption = {"gui.controller-not-registered"},
-            style = "heading_2_label"
-        }
-        
-        -- Add some spacing
-        content.add{type = "line"}
-        
-        -- Group selection
-        local group_flow = content.add{type = "flow", direction = "horizontal"}
-        group_flow.style.vertical_align = "center"
-        group_flow.style.horizontal_spacing = 8
-        
-        local group_label = group_flow.add{
-            type = "label",
-            caption = {"gui.select-group"}
-        }
-        group_label.style.width = 150
-        
-        local group_dropdown = group_flow.add{
-            type = "drop-down",
-            name = "group-dropdown",
-            items = {}
-        }
-        
         -- Get available groups for current surface/platform
         local surface = controller_entity.surface
         local platform_index = surface and surface.platform and surface.platform.index
+        local group_items = {}
+        
         if platform_index then
             local groups = CircuitRequestController.get_platform_groups(surface.platform)
-            local items = {}
             for i, group in ipairs(groups) do
-                table.insert(items, group.name)
+                table.insert(group_items, group.name)
             end
-            group_dropdown.items = items
-        else
-            content.add{
+        end
+        
+        local content_elems = {}
+        flib_gui.add(content, {
+            {
+                type = "label",
+                caption = {"gui.controller-not-registered"},
+                style = "heading_2_label"
+            },
+            {type = "line"},
+            platform_index and {
+                -- Group selection
+                type = "flow",
+                direction = "horizontal",
+                style_mods = {
+                    vertical_align = "center",
+                    horizontal_spacing = 8
+                },
+                {
+                    type = "label",
+                    caption = {"gui.select-group"},
+                    style_mods = {width = 150}
+                },
+                {
+                    type = "drop-down",
+                    name = "group-dropdown",
+                    items = group_items
+                }
+            } or {
                 type = "label",
                 caption = {"gui.no-platform"},
                 style = "bold_red_label"
+            },
+            {
+                -- Planet selection
+                type = "flow",
+                direction = "horizontal",
+                style_mods = {
+                    vertical_align = "center",
+                    horizontal_spacing = 8,
+                    top_margin = 8
+                },
+                {
+                    type = "label",
+                    caption = {"gui.target-planet"},
+                    style_mods = {width = 150}
+                },
+                {
+                    type = "textfield",
+                    name = "planet-textfield",
+                    text = "nauvis",
+                    style_mods = {width = 200}
+                }
+            },
+            {
+                -- Register button
+                type = "flow",
+                direction = "horizontal",
+                style_mods = {
+                    top_margin = 12,
+                    horizontal_align = "center"
+                },
+                {
+                    type = "button",
+                    name = "register-controller-button",
+                    caption = {"gui.register-controller"},
+                    style = "confirm_button"
+                }
             }
-        end
-        
-        -- Planet selection
-        local planet_flow = content.add{type = "flow", direction = "horizontal"}
-        planet_flow.style.vertical_align = "center"
-        planet_flow.style.horizontal_spacing = 8
-        planet_flow.style.top_margin = 8
-        
-        local planet_label = planet_flow.add{
-            type = "label",
-            caption = {"gui.target-planet"}
-        }
-        planet_label.style.width = 150
-        
-        local planet_textfield = planet_flow.add{
-            type = "textfield",
-            name = "planet-textfield",
-            text = "nauvis"
-        }
-        planet_textfield.style.width = 200
-        
-        -- Register button
-        local button_flow = content.add{type = "flow", direction = "horizontal"}
-        button_flow.style.top_margin = 12
-        button_flow.style.horizontal_align = "center"
-        button_flow.add{
-            type = "button",
-            name = "register-controller-button",
-            caption = {"gui.register-controller"},
-            style = "confirm_button"
-        }
+        }, content_elems)
     else
         -- Controller is registered
         local group = storage.logistics_groups[controller.group_id]
         
         if group then
-            -- Status section
-            local status_flow = content.add{type = "flow", direction = "vertical"}
-            status_flow.style.bottom_margin = 8
+            local content_elems = {}
+            flib_gui.add(content, {
+                {
+                    -- Status section
+                    type = "flow",
+                    direction = "vertical",
+                    style_mods = {bottom_margin = 8},
+                    {
+                        type = "label",
+                        caption = {"gui.group-name", group.name},
+                        style = "heading_2_label"
+                    },
+                    {
+                        type = "label",
+                        caption = {"gui.target-planet", controller.target_planet}
+                    }
+                },
+                {type = "line"},
+                {
+                    -- Default buffer multiplier section
+                    type = "flow",
+                    direction = "vertical",
+                    style_mods = {
+                        top_margin = 8,
+                        bottom_margin = 8
+                    },
+                    {
+                        type = "label",
+                        caption = {"gui.default-buffer-multiplier"},
+                        style = "bold_label"
+                    },
+                    {
+                        type = "flow",
+                        direction = "horizontal",
+                        style_mods = {
+                            vertical_align = "center",
+                            horizontal_spacing = 8,
+                            top_margin = 4
+                        },
+                        {
+                            type = "textfield",
+                            name = "buffer-multiplier-textfield",
+                            text = tostring(controller.default_buffer_multiplier or 2.0),
+                            numeric = true,
+                            style_mods = {width = 100}
+                        },
+                        {
+                            type = "button",
+                            name = "save-multiplier-button",
+                            caption = {"gui.save"},
+                            style = "confirm_button"
+                        }
+                    }
+                },
+                {type = "line"},
+                {
+                    -- Current requests section
+                    type = "flow",
+                    name = "requests_section",
+                    direction = "vertical",
+                    style_mods = {top_margin = 8}
+                }
+            }, content_elems)
             
-            status_flow.add{
-                type = "label",
-                caption = {"gui.group-name", group.name},
-                style = "heading_2_label"
-            }
-            status_flow.add{
-                type = "label",
-                caption = {"gui.target-planet", controller.target_planet}
-            }
-            
-            content.add{type = "line"}
-            
-            -- Default buffer multiplier section
-            local multiplier_section = content.add{type = "flow", direction = "vertical"}
-            multiplier_section.style.top_margin = 8
-            multiplier_section.style.bottom_margin = 8
-            
-            multiplier_section.add{
-                type = "label",
-                caption = {"gui.default-buffer-multiplier"},
-                style = "bold_label"
-            }
-            
-            local multiplier_flow = multiplier_section.add{type = "flow", direction = "horizontal"}
-            multiplier_flow.style.vertical_align = "center"
-            multiplier_flow.style.horizontal_spacing = 8
-            multiplier_flow.style.top_margin = 4
-            
-            local multiplier_textfield = multiplier_flow.add{
-                type = "textfield",
-                name = "buffer-multiplier-textfield",
-                text = tostring(controller.default_buffer_multiplier or 2.0),
-                numeric = true
-            }
-            multiplier_textfield.style.width = 100
-            
-            multiplier_flow.add{
-                type = "button",
-                name = "save-multiplier-button",
-                caption = {"gui.save"},
-                style = "confirm_button"
-            }
-            
-            content.add{type = "line"}
-            
-            -- Current requests section
-            local requests_section = content.add{type = "flow", direction = "vertical"}
-            requests_section.style.top_margin = 8
-            
-            requests_section.add{
-                type = "label",
-                caption = {"gui.current-requests"},
-                style = "heading_2_label"
-            }
+            local requests_section = content_elems.requests_section
+            flib_gui.add(requests_section, {
+                {
+                    type = "label",
+                    caption = {"gui.current-requests"},
+                    style = "heading_2_label"
+                }
+            })
             
             if group.requests and next(group.requests) then
-                local scroll_pane = requests_section.add{
-                    type = "scroll-pane",
-                    direction = "vertical"
-                }
-                scroll_pane.style.maximal_height = 400
-                scroll_pane.style.top_margin = 8
+                local scroll_elems = {}
+                flib_gui.add(requests_section, {
+                    {
+                        type = "scroll-pane",
+                        name = "scroll_pane",
+                        direction = "vertical",
+                        style_mods = {
+                            maximal_height = 400,
+                            top_margin = 8
+                        },
+                        {
+                            type = "table",
+                            name = "request_table",
+                            column_count = 7
+                        }
+                    }
+                }, scroll_elems)
                 
-                local request_table = scroll_pane.add{
-                    type = "table",
-                    column_count = 7,
-                    name = "request-table"
-                }
+                local request_table = scroll_elems.request_table
                 
                 -- Headers
                 request_table.add{type = "label", caption = {"gui.enabled"}, style = "bold_label"}
@@ -801,37 +834,52 @@ function CircuitRequestController.create_gui(player, controller_entity)
                     end
                 end
             else
-                requests_section.add{
-                    type = "label",
-                    caption = {"gui.no-requests"},
-                    style = "italic_label"
-                }
+                flib_gui.add(requests_section, {
+                    {
+                        type = "label",
+                        caption = {"gui.no-requests"},
+                        style = "italic_label"
+                    }
+                })
             end
             
-            content.add{type = "line"}
-            
-            -- Unregister button
-            local unregister_flow = content.add{type = "flow", direction = "horizontal"}
-            unregister_flow.style.top_margin = 8
-            unregister_flow.style.horizontal_align = "center"
-            unregister_flow.add{
-                type = "button",
-                name = "unregister-controller-button",
-                caption = {"gui.unregister-controller"},
-                style = "red_button"
-            }
+            flib_gui.add(content, {
+                {type = "line"},
+                {
+                    -- Unregister button
+                    type = "flow",
+                    direction = "horizontal",
+                    style_mods = {
+                        top_margin = 8,
+                        horizontal_align = "center"
+                    },
+                    {
+                        type = "button",
+                        name = "unregister-controller-button",
+                        caption = {"gui.unregister-controller"},
+                        style = "red_button"
+                    }
+                }
+            })
         end
     end
     
     -- Close button at bottom
-    local button_flow = main_frame.add{type = "flow", direction = "horizontal"}
-    button_flow.style.horizontal_align = "right"
-    button_flow.style.top_margin = 8
-    button_flow.add{
-        type = "button",
-        name = "close-gui-button",
-        caption = {"gui.close"}
-    }
+    flib_gui.add(main_frame, {
+        {
+            type = "flow",
+            direction = "horizontal",
+            style_mods = {
+                horizontal_align = "right",
+                top_margin = 8
+            },
+            {
+                type = "button",
+                name = "close-gui-button",
+                caption = {"gui.close"}
+            }
+        }
+    })
     
     player.opened = main_frame
 end
@@ -991,146 +1039,172 @@ function CircuitRequestController.create_item_edit_gui(player, controller_unit_n
     storage.gui_edit_items = storage.gui_edit_items or {}
     storage.gui_edit_items[player.index] = item_name
     
-    -- Create edit frame
-    local edit_frame = player.gui.screen.add{
-        type = "frame",
-        name = "item-edit-gui",
-        direction = "vertical"
-    }
-    edit_frame.auto_center = true
-    
-    -- Title bar
-    local title_bar = edit_frame.add{
-        type = "flow",
-        direction = "horizontal"
-    }
-    title_bar.style.horizontal_spacing = 8
-    title_bar.drag_target = edit_frame
-    
-    title_bar.add{
-        type = "label",
-        caption = {"gui.edit-item-settings"},
-        style = "frame_title",
-        ignored_by_interaction = true
-    }
-    
-    local filler = title_bar.add{
-        type = "empty-widget",
-        style = "draggable_space_header"
-    }
-    filler.style.horizontally_stretchable = true
-    filler.style.height = 24
-    filler.drag_target = edit_frame
-    
-    -- Content area
-    local content = edit_frame.add{
-        type = "frame",
-        name = "content_frame",
-        direction = "vertical",
-        style = "inside_shallow_frame"
-    }
-    content.style.padding = 12
-    
-    -- Item display
-    local item_flow = content.add{type = "flow", direction = "horizontal"}
-    item_flow.style.vertical_align = "center"
-    item_flow.style.horizontal_spacing = 8
-    item_flow.style.bottom_margin = 12
-    
+    -- Build item display elements
+    local item_display_elements = {}
     if game.item_prototypes[item_name] then
-        item_flow.add{
-            type = "sprite-button",
-            sprite = "item/" .. item_name,
-            enabled = false,
-            style = "slot_button"
-        }
-        item_flow.add{
-            type = "label",
-            caption = game.item_prototypes[item_name].localised_name,
-            style = "heading_2_label"
+        item_display_elements = {
+            {
+                type = "sprite-button",
+                sprite = "item/" .. item_name,
+                enabled = false,
+                style = "slot_button"
+            },
+            {
+                type = "label",
+                caption = game.item_prototypes[item_name].localised_name,
+                style = "heading_2_label"
+            }
         }
     else
-        item_flow.add{
-            type = "label",
-            caption = item_name,
-            style = "heading_2_label"
+        item_display_elements = {
+            {
+                type = "label",
+                caption = item_name,
+                style = "heading_2_label"
+            }
         }
     end
     
-    content.add{type = "line"}
+    -- Create edit frame using flib.gui for better mod compatibility
+    local elems = {}
+    local edit_frame = flib_gui.add(player.gui.screen, {
+        type = "frame",
+        name = "item-edit-gui",
+        direction = "vertical",
+        elem_mods = {auto_center = true},
+        {
+            -- Title bar
+            type = "flow",
+            direction = "horizontal",
+            style_mods = {horizontal_spacing = 8},
+            drag_target = "item-edit-gui",
+            {
+                type = "label",
+                caption = {"gui.edit-item-settings"},
+                style = "frame_title",
+                elem_mods = {ignored_by_interaction = true}
+            },
+            {
+                type = "empty-widget",
+                style = "draggable_space_header",
+                style_mods = {
+                    horizontally_stretchable = true,
+                    height = 24
+                },
+                drag_target = "item-edit-gui"
+            }
+        },
+        {
+            -- Content area
+            type = "frame",
+            name = "content_frame",
+            direction = "vertical",
+            style = "inside_shallow_frame",
+            style_mods = {padding = 12}
+        }
+    }, elems)
     
-    -- Buffer multiplier
-    local mult_section = content.add{type = "flow", direction = "vertical"}
-    mult_section.style.top_margin = 8
-    mult_section.style.bottom_margin = 8
+    local content = elems.content_frame
     
-    mult_section.add{
-        type = "label",
-        caption = {"gui.buffer-multiplier"},
-        style = "bold_label"
-    }
-    
-    local mult_flow = mult_section.add{type = "flow", direction = "horizontal"}
-    mult_flow.style.vertical_align = "center"
-    mult_flow.style.horizontal_spacing = 8
-    mult_flow.style.top_margin = 4
-    
-    local mult_textfield = mult_flow.add{
-        type = "textfield",
-        name = "item-multiplier-textfield",
-        text = tostring(override and override.buffer_multiplier or controller.default_buffer_multiplier or 2.0),
-        numeric = true
-    }
-    mult_textfield.style.width = 100
-    
-    -- Maximum quantity override
-    local max_section = content.add{type = "flow", direction = "vertical"}
-    max_section.style.bottom_margin = 8
-    
-    max_section.add{
-        type = "label",
-        caption = {"gui.maximum-override"},
-        style = "bold_label"
-    }
-    
-    local max_flow = max_section.add{type = "flow", direction = "horizontal"}
-    max_flow.style.vertical_align = "center"
-    max_flow.style.horizontal_spacing = 8
-    max_flow.style.top_margin = 4
-    
-    local max_textfield = max_flow.add{
-        type = "textfield",
-        name = "item-maximum-textfield",
-        text = override and override.maximum_quantity and tostring(override.maximum_quantity) or "",
-        numeric = true
-    }
-    max_textfield.style.width = 100
-    
-    max_flow.add{
-        type = "label",
-        caption = {"gui.leave-empty-for-auto"},
-        style = "italic_label"
-    }
-    
-    content.add{type = "line"}
-    
-    -- Buttons
-    local button_flow = content.add{type = "flow", direction = "horizontal"}
-    button_flow.style.top_margin = 8
-    button_flow.style.horizontal_spacing = 8
-    button_flow.style.horizontal_align = "center"
-    
-    button_flow.add{
-        type = "button",
-        name = "save-item-override-button",
-        caption = {"gui.save"},
-        style = "confirm_button"
-    }
-    button_flow.add{
-        type = "button",
-        name = "cancel-item-edit-button",
-        caption = {"gui.cancel"}
-    }
+    -- Add content using flib.gui
+    flib_gui.add(content, {
+        {
+            -- Item display
+            type = "flow",
+            direction = "horizontal",
+            style_mods = {
+                vertical_align = "center",
+                horizontal_spacing = 8,
+                bottom_margin = 12
+            },
+            item_display_elements
+        },
+        {type = "line"},
+        {
+            -- Buffer multiplier section
+            type = "flow",
+            direction = "vertical",
+            style_mods = {
+                top_margin = 8,
+                bottom_margin = 8
+            },
+            {
+                type = "label",
+                caption = {"gui.buffer-multiplier"},
+                style = "bold_label"
+            },
+            {
+                type = "flow",
+                direction = "horizontal",
+                style_mods = {
+                    vertical_align = "center",
+                    horizontal_spacing = 8,
+                    top_margin = 4
+                },
+                {
+                    type = "textfield",
+                    name = "item-multiplier-textfield",
+                    text = tostring(override and override.buffer_multiplier or controller.default_buffer_multiplier or 2.0),
+                    numeric = true,
+                    style_mods = {width = 100}
+                }
+            }
+        },
+        {
+            -- Maximum quantity override section
+            type = "flow",
+            direction = "vertical",
+            style_mods = {bottom_margin = 8},
+            {
+                type = "label",
+                caption = {"gui.maximum-override"},
+                style = "bold_label"
+            },
+            {
+                type = "flow",
+                direction = "horizontal",
+                style_mods = {
+                    vertical_align = "center",
+                    horizontal_spacing = 8,
+                    top_margin = 4
+                },
+                {
+                    type = "textfield",
+                    name = "item-maximum-textfield",
+                    text = override and override.maximum_quantity and tostring(override.maximum_quantity) or "",
+                    numeric = true,
+                    style_mods = {width = 100}
+                },
+                {
+                    type = "label",
+                    caption = {"gui.leave-empty-for-auto"},
+                    style = "italic_label"
+                }
+            }
+        },
+        {type = "line"},
+        {
+            -- Buttons
+            type = "flow",
+            direction = "horizontal",
+            style_mods = {
+                top_margin = 8,
+                horizontal_spacing = 8,
+                horizontal_align = "center"
+            },
+            {
+                type = "button",
+                name = "save-item-override-button",
+                caption = {"gui.save"},
+                style = "confirm_button"
+            },
+            {
+                type = "button",
+                name = "cancel-item-edit-button",
+                caption = {"gui.cancel"}
+            }
+        }
+    })
     
     player.opened = edit_frame
 end
