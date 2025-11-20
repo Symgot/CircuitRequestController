@@ -277,24 +277,29 @@ function CircuitRequestController.sync_group_to_transfer_system(group_id)
     
     -- Apply new requests from the group
     for item_name, request_data in pairs(group.requests) do
-        -- Check if TransferRequest supports maximum_quantity parameter (Space Age feature)
-        local success, err = pcall(function()
-            TransferRequest.register_request(
-                platform,
-                item_name,
-                request_data.minimum_quantity,
-                request_data.maximum_quantity or request_data.requested_quantity
-            )
-        end)
+        -- Check if item is enabled (default to true if not specified)
+        local enabled = request_data.enabled ~= false
         
-        if not success then
-            -- Fallback for older API without maximum_quantity
-            TransferRequest.register_request(
-                platform,
-                item_name,
-                request_data.minimum_quantity,
-                request_data.requested_quantity
-            )
+        if enabled then
+            -- Check if TransferRequest supports maximum_quantity parameter (Space Age feature)
+            local success, err = pcall(function()
+                TransferRequest.register_request(
+                    platform,
+                    item_name,
+                    request_data.minimum_quantity,
+                    request_data.maximum_quantity or request_data.requested_quantity
+                )
+            end)
+            
+            if not success then
+                -- Fallback for older API without maximum_quantity
+                TransferRequest.register_request(
+                    platform,
+                    item_name,
+                    request_data.minimum_quantity,
+                    request_data.requested_quantity
+                )
+            end
         end
     end
     
@@ -412,6 +417,53 @@ function CircuitRequestController.get_group(group_id)
     return storage.logistics_groups[group_id]
 end
 
+-- Update multipliers for a locked group (without changing items)
+-- This allows adjusting multipliers even when the group is locked
+function CircuitRequestController.update_group_multipliers(group_id, item_multipliers)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group then return false, "Group not found" end
+    
+    -- Update multipliers for existing items only
+    for item_name, multiplier in pairs(item_multipliers) do
+        if group.requests[item_name] then
+            local request = group.requests[item_name]
+            local new_max = math.floor(request.minimum_quantity * multiplier)
+            request.maximum_quantity = new_max
+        end
+    end
+    
+    return true
+end
+
+-- Enable/disable specific items in a group without removing them
+function CircuitRequestController.set_item_enabled(group_id, item_name, enabled)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group then return false, "Group not found" end
+    
+    if not group.requests[item_name] then
+        return false, "Item not in group"
+    end
+    
+    -- Add enabled flag to request
+    group.requests[item_name].enabled = enabled
+    
+    return true
+end
+
+-- Check if an item is enabled in a group
+function CircuitRequestController.is_item_enabled(group_id, item_name)
+    storage.logistics_groups = storage.logistics_groups or {}
+    local group = storage.logistics_groups[group_id]
+    if not group or not group.requests[item_name] then
+        return false
+    end
+    
+    -- Default to enabled if not specified
+    return group.requests[item_name].enabled ~= false
+end
+
 -- Set default buffer multiplier for a controller
 function CircuitRequestController.set_controller_buffer_multiplier(controller_unit_number, multiplier)
     storage.circuit_controllers = storage.circuit_controllers or {}
@@ -481,38 +533,71 @@ function CircuitRequestController.create_gui(player, controller_entity)
     
     local controller = storage.circuit_controllers[controller_entity.unit_number]
     
+    -- Store controller reference for this player
+    storage.gui_controllers = storage.gui_controllers or {}
+    storage.gui_controllers[player.index] = controller_entity.unit_number
+    
     -- Create main frame
     local main_frame = player.gui.screen.add{
         type = "frame",
         name = "circuit-controller-gui",
-        direction = "vertical",
-        caption = {"gui.circuit-controller-title"}
+        direction = "vertical"
     }
     main_frame.auto_center = true
     
-    -- Store controller reference
-    storage.gui_controllers = storage.gui_controllers or {}
-    storage.gui_controllers[player.index] = controller_entity.unit_number
-    
-    -- Title bar with close button
-    local title_bar = main_frame.add{type = "flow", direction = "horizontal"}
+    -- Title bar
+    local title_bar = main_frame.add{
+        type = "flow",
+        direction = "horizontal"
+    }
     title_bar.style.horizontal_spacing = 8
-    title_bar.add{type = "label", caption = {"gui.circuit-controller-title"}, style = "frame_title"}
-    local title_spacer = title_bar.add{type = "empty-widget", style = "draggable_space_header"}
-    title_spacer.style.horizontally_stretchable = true
-    title_spacer.style.height = 24
-    title_spacer.drag_target = main_frame
+    title_bar.drag_target = main_frame
+    
+    title_bar.add{
+        type = "label",
+        caption = {"gui.circuit-controller-title"},
+        style = "frame_title",
+        ignored_by_interaction = true
+    }
+    
+    local filler = title_bar.add{
+        type = "empty-widget",
+        style = "draggable_space_header"
+    }
+    filler.style.horizontally_stretchable = true
+    filler.style.height = 24
+    filler.drag_target = main_frame
     
     -- Content area
-    local content = main_frame.add{type = "frame", name = "inside_shallow_frame", direction = "vertical", style = "inside_shallow_frame"}
+    local content = main_frame.add{
+        type = "frame",
+        name = "content_frame",
+        direction = "vertical",
+        style = "inside_shallow_frame"
+    }
+    content.style.padding = 12
     
     if not controller then
         -- Controller not registered yet
-        content.add{type = "label", caption = {"gui.controller-not-registered"}}
+        content.add{
+            type = "label",
+            caption = {"gui.controller-not-registered"},
+            style = "heading_2_label"
+        }
+        
+        -- Add some spacing
+        content.add{type = "line"}
         
         -- Group selection
         local group_flow = content.add{type = "flow", direction = "horizontal"}
-        group_flow.add{type = "label", caption = {"gui.select-group"}}
+        group_flow.style.vertical_align = "center"
+        group_flow.style.horizontal_spacing = 8
+        
+        local group_label = group_flow.add{
+            type = "label",
+            caption = {"gui.select-group"}
+        }
+        group_label.style.width = 150
         
         local group_dropdown = group_flow.add{
             type = "drop-down",
@@ -526,84 +611,152 @@ function CircuitRequestController.create_gui(player, controller_entity)
         if platform_index then
             local groups = CircuitRequestController.get_platform_groups(surface.platform)
             local items = {}
-            local selected_index = 1
             for i, group in ipairs(groups) do
                 table.insert(items, group.name)
             end
             group_dropdown.items = items
+        else
+            content.add{
+                type = "label",
+                caption = {"gui.no-platform"},
+                style = "bold_red_label"
+            }
         end
         
         -- Planet selection
         local planet_flow = content.add{type = "flow", direction = "horizontal"}
-        planet_flow.add{type = "label", caption = {"gui.target-planet"}}
+        planet_flow.style.vertical_align = "center"
+        planet_flow.style.horizontal_spacing = 8
+        planet_flow.style.top_margin = 8
+        
+        local planet_label = planet_flow.add{
+            type = "label",
+            caption = {"gui.target-planet"}
+        }
+        planet_label.style.width = 150
+        
         local planet_textfield = planet_flow.add{
             type = "textfield",
             name = "planet-textfield",
             text = "nauvis"
         }
+        planet_textfield.style.width = 200
         
         -- Register button
-        content.add{
+        local button_flow = content.add{type = "flow", direction = "horizontal"}
+        button_flow.style.top_margin = 12
+        button_flow.style.horizontal_align = "center"
+        button_flow.add{
             type = "button",
             name = "register-controller-button",
-            caption = {"gui.register-controller"}
+            caption = {"gui.register-controller"},
+            style = "confirm_button"
         }
     else
         -- Controller is registered
         local group = storage.logistics_groups[controller.group_id]
         
         if group then
-            content.add{type = "label", caption = {"gui.group-name", group.name}}
-            content.add{type = "label", caption = {"gui.target-planet", controller.target_planet}}
+            -- Status section
+            local status_flow = content.add{type = "flow", direction = "vertical"}
+            status_flow.style.bottom_margin = 8
             
-            -- Default buffer multiplier
-            local multiplier_flow = content.add{type = "flow", direction = "horizontal"}
-            multiplier_flow.add{type = "label", caption = {"gui.default-buffer-multiplier"}}
-            multiplier_flow.add{
+            status_flow.add{
+                type = "label",
+                caption = {"gui.group-name", group.name},
+                style = "heading_2_label"
+            }
+            status_flow.add{
+                type = "label",
+                caption = {"gui.target-planet", controller.target_planet}
+            }
+            
+            content.add{type = "line"}
+            
+            -- Default buffer multiplier section
+            local multiplier_section = content.add{type = "flow", direction = "vertical"}
+            multiplier_section.style.top_margin = 8
+            multiplier_section.style.bottom_margin = 8
+            
+            multiplier_section.add{
+                type = "label",
+                caption = {"gui.default-buffer-multiplier"},
+                style = "bold_label"
+            }
+            
+            local multiplier_flow = multiplier_section.add{type = "flow", direction = "horizontal"}
+            multiplier_flow.style.vertical_align = "center"
+            multiplier_flow.style.horizontal_spacing = 8
+            multiplier_flow.style.top_margin = 4
+            
+            local multiplier_textfield = multiplier_flow.add{
                 type = "textfield",
                 name = "buffer-multiplier-textfield",
                 text = tostring(controller.default_buffer_multiplier or 2.0),
                 numeric = true
             }
+            multiplier_textfield.style.width = 100
+            
             multiplier_flow.add{
                 type = "button",
                 name = "save-multiplier-button",
-                caption = {"gui.save"}
+                caption = {"gui.save"},
+                style = "confirm_button"
             }
             
-            -- Current requests
-            content.add{type = "label", caption = {"gui.current-requests"}, style = "bold_label"}
+            content.add{type = "line"}
+            
+            -- Current requests section
+            local requests_section = content.add{type = "flow", direction = "vertical"}
+            requests_section.style.top_margin = 8
+            
+            requests_section.add{
+                type = "label",
+                caption = {"gui.current-requests"},
+                style = "heading_2_label"
+            }
             
             if group.requests and next(group.requests) then
-                local scroll_pane = content.add{
+                local scroll_pane = requests_section.add{
                     type = "scroll-pane",
                     direction = "vertical"
                 }
                 scroll_pane.style.maximal_height = 400
+                scroll_pane.style.top_margin = 8
                 
                 local request_table = scroll_pane.add{
                     type = "table",
-                    column_count = 6,
+                    column_count = 7,
                     name = "request-table"
                 }
                 
                 -- Headers
-                request_table.add{type = "label", caption = {"gui.item"}}
-                request_table.add{type = "label", caption = {"gui.minimum"}}
-                request_table.add{type = "label", caption = {"gui.maximum"}}
-                request_table.add{type = "label", caption = {"gui.multiplier"}}
-                request_table.add{type = "label", caption = {"gui.override"}}
-                request_table.add{type = "label", caption = {"gui.actions"}}
+                request_table.add{type = "label", caption = {"gui.enabled"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.item"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.minimum"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.maximum"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.multiplier"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.override"}, style = "bold_label"}
+                request_table.add{type = "label", caption = {"gui.actions"}, style = "bold_label"}
                 
                 -- Items
                 for item_name, request_data in pairs(group.requests) do
+                    -- Enabled checkbox
+                    local is_enabled = request_data.enabled ~= false
+                    request_table.add{
+                        type = "checkbox",
+                        name = "enable-item-" .. item_name,
+                        state = is_enabled
+                    }
+                    
                     -- Item sprite
                     if game.item_prototypes[item_name] then
                         request_table.add{
                             type = "sprite-button",
                             sprite = "item/" .. item_name,
                             tooltip = game.item_prototypes[item_name].localised_name,
-                            style = "slot_button"
+                            style = "slot_button",
+                            enabled = false
                         }
                     else
                         request_table.add{type = "label", caption = item_name}
@@ -633,6 +786,7 @@ function CircuitRequestController.create_gui(player, controller_entity)
                     
                     -- Actions
                     local actions_flow = request_table.add{type = "flow", direction = "horizontal"}
+                    actions_flow.style.horizontal_spacing = 4
                     actions_flow.add{
                         type = "button",
                         name = "edit-item-" .. item_name,
@@ -647,21 +801,32 @@ function CircuitRequestController.create_gui(player, controller_entity)
                     end
                 end
             else
-                content.add{type = "label", caption = {"gui.no-requests"}}
+                requests_section.add{
+                    type = "label",
+                    caption = {"gui.no-requests"},
+                    style = "italic_label"
+                }
             end
+            
+            content.add{type = "line"}
+            
+            -- Unregister button
+            local unregister_flow = content.add{type = "flow", direction = "horizontal"}
+            unregister_flow.style.top_margin = 8
+            unregister_flow.style.horizontal_align = "center"
+            unregister_flow.add{
+                type = "button",
+                name = "unregister-controller-button",
+                caption = {"gui.unregister-controller"},
+                style = "red_button"
+            }
         end
-        
-        -- Unregister button
-        content.add{
-            type = "button",
-            name = "unregister-controller-button",
-            caption = {"gui.unregister-controller"}
-        }
     end
     
     -- Close button at bottom
     local button_flow = main_frame.add{type = "flow", direction = "horizontal"}
     button_flow.style.horizontal_align = "right"
+    button_flow.style.top_margin = 8
     button_flow.add{
         type = "button",
         name = "close-gui-button",
@@ -691,15 +856,8 @@ function CircuitRequestController.handle_gui_click(event)
         local gui = player.gui.screen["circuit-controller-gui"]
         if not gui then return end
         
-        -- Find the textfield and dropdown elements
-        local content_frame = nil
-        for _, child in pairs(gui.children) do
-            if child.name == "inside_shallow_frame" then
-                content_frame = child
-                break
-            end
-        end
-        
+        -- Find the content frame
+        local content_frame = gui["content_frame"]
         if not content_frame then return end
         
         local group_dropdown = content_frame["group-dropdown"]
@@ -770,15 +928,7 @@ function CircuitRequestController.handle_gui_click(event)
         local gui = player.gui.screen["circuit-controller-gui"]
         if not gui then return end
         
-        -- Find the content frame
-        local content_frame = nil
-        for _, child in pairs(gui.children) do
-            if child.name == "inside_shallow_frame" then
-                content_frame = child
-                break
-            end
-        end
-        
+        local content_frame = gui["content_frame"]
         if not content_frame then return end
         
         local multiplier_textfield = content_frame["buffer-multiplier-textfield"]
@@ -837,23 +987,56 @@ function CircuitRequestController.create_item_edit_gui(player, controller_unit_n
     
     local override = controller.item_overrides and controller.item_overrides[item_name]
     
-    -- Create edit frame
-    local edit_frame = player.gui.screen.add{
-        type = "frame",
-        name = "item-edit-gui",
-        direction = "vertical",
-        caption = {"gui.edit-item-settings"}
-    }
-    edit_frame.auto_center = true
-    
     -- Store item reference
     storage.gui_edit_items = storage.gui_edit_items or {}
     storage.gui_edit_items[player.index] = item_name
     
-    local content = edit_frame.add{type = "frame", name = "inside_shallow_frame", direction = "vertical", style = "inside_shallow_frame"}
+    -- Create edit frame
+    local edit_frame = player.gui.screen.add{
+        type = "frame",
+        name = "item-edit-gui",
+        direction = "vertical"
+    }
+    edit_frame.auto_center = true
+    
+    -- Title bar
+    local title_bar = edit_frame.add{
+        type = "flow",
+        direction = "horizontal"
+    }
+    title_bar.style.horizontal_spacing = 8
+    title_bar.drag_target = edit_frame
+    
+    title_bar.add{
+        type = "label",
+        caption = {"gui.edit-item-settings"},
+        style = "frame_title",
+        ignored_by_interaction = true
+    }
+    
+    local filler = title_bar.add{
+        type = "empty-widget",
+        style = "draggable_space_header"
+    }
+    filler.style.horizontally_stretchable = true
+    filler.style.height = 24
+    filler.drag_target = edit_frame
+    
+    -- Content area
+    local content = edit_frame.add{
+        type = "frame",
+        name = "content_frame",
+        direction = "vertical",
+        style = "inside_shallow_frame"
+    }
+    content.style.padding = 12
     
     -- Item display
     local item_flow = content.add{type = "flow", direction = "horizontal"}
+    item_flow.style.vertical_align = "center"
+    item_flow.style.horizontal_spacing = 8
+    item_flow.style.bottom_margin = 12
+    
     if game.item_prototypes[item_name] then
         item_flow.add{
             type = "sprite-button",
@@ -863,39 +1046,85 @@ function CircuitRequestController.create_item_edit_gui(player, controller_unit_n
         }
         item_flow.add{
             type = "label",
-            caption = game.item_prototypes[item_name].localised_name
+            caption = game.item_prototypes[item_name].localised_name,
+            style = "heading_2_label"
         }
     else
-        item_flow.add{type = "label", caption = item_name}
+        item_flow.add{
+            type = "label",
+            caption = item_name,
+            style = "heading_2_label"
+        }
     end
     
+    content.add{type = "line"}
+    
     -- Buffer multiplier
-    local mult_flow = content.add{type = "flow", direction = "horizontal"}
-    mult_flow.add{type = "label", caption = {"gui.buffer-multiplier"}}
-    mult_flow.add{
+    local mult_section = content.add{type = "flow", direction = "vertical"}
+    mult_section.style.top_margin = 8
+    mult_section.style.bottom_margin = 8
+    
+    mult_section.add{
+        type = "label",
+        caption = {"gui.buffer-multiplier"},
+        style = "bold_label"
+    }
+    
+    local mult_flow = mult_section.add{type = "flow", direction = "horizontal"}
+    mult_flow.style.vertical_align = "center"
+    mult_flow.style.horizontal_spacing = 8
+    mult_flow.style.top_margin = 4
+    
+    local mult_textfield = mult_flow.add{
         type = "textfield",
         name = "item-multiplier-textfield",
         text = tostring(override and override.buffer_multiplier or controller.default_buffer_multiplier or 2.0),
         numeric = true
     }
+    mult_textfield.style.width = 100
     
     -- Maximum quantity override
-    local max_flow = content.add{type = "flow", direction = "horizontal"}
-    max_flow.add{type = "label", caption = {"gui.maximum-override"}}
-    max_flow.add{
+    local max_section = content.add{type = "flow", direction = "vertical"}
+    max_section.style.bottom_margin = 8
+    
+    max_section.add{
+        type = "label",
+        caption = {"gui.maximum-override"},
+        style = "bold_label"
+    }
+    
+    local max_flow = max_section.add{type = "flow", direction = "horizontal"}
+    max_flow.style.vertical_align = "center"
+    max_flow.style.horizontal_spacing = 8
+    max_flow.style.top_margin = 4
+    
+    local max_textfield = max_flow.add{
         type = "textfield",
         name = "item-maximum-textfield",
         text = override and override.maximum_quantity and tostring(override.maximum_quantity) or "",
         numeric = true
     }
-    max_flow.add{type = "label", caption = {"gui.leave-empty-for-auto"}}
+    max_textfield.style.width = 100
+    
+    max_flow.add{
+        type = "label",
+        caption = {"gui.leave-empty-for-auto"},
+        style = "italic_label"
+    }
+    
+    content.add{type = "line"}
     
     -- Buttons
     local button_flow = content.add{type = "flow", direction = "horizontal"}
+    button_flow.style.top_margin = 8
+    button_flow.style.horizontal_spacing = 8
+    button_flow.style.horizontal_align = "center"
+    
     button_flow.add{
         type = "button",
         name = "save-item-override-button",
-        caption = {"gui.save"}
+        caption = {"gui.save"},
+        style = "confirm_button"
     }
     button_flow.add{
         type = "button",
@@ -921,15 +1150,7 @@ function CircuitRequestController.handle_save_item_override(player, event)
     local gui = player.gui.screen["item-edit-gui"]
     if not gui then return end
     
-    -- Find the content frame
-    local content_frame = nil
-    for _, child in pairs(gui.children) do
-        if child.name == "inside_shallow_frame" then
-            content_frame = child
-            break
-        end
-    end
-    
+    local content_frame = gui["content_frame"]
     if not content_frame then return end
     
     local mult_field = content_frame["item-multiplier-textfield"]
@@ -981,6 +1202,49 @@ end
 -- Handle GUI confirmed events (Enter key pressed)
 function CircuitRequestController.handle_gui_confirmed(event)
     -- Currently no special handling needed
+end
+
+-- Handle GUI checkbox state changed events
+function CircuitRequestController.handle_gui_checked_state_changed(event)
+    local player = game.get_player(event.player_index)
+    if not player or not player.valid then return end
+    
+    local element = event.element
+    if not element or not element.valid then return end
+    
+    -- Check if this is an enable-item checkbox
+    if element.name:match("^enable%-item%-") then
+        local item_name = element.name:sub(13)
+        
+        storage.gui_controllers = storage.gui_controllers or {}
+        local controller_unit_number = storage.gui_controllers[player.index]
+        if not controller_unit_number then return end
+        
+        storage.circuit_controllers = storage.circuit_controllers or {}
+        local controller = storage.circuit_controllers[controller_unit_number]
+        if not controller then return end
+        
+        -- Update the item enabled state
+        local success, err = CircuitRequestController.set_item_enabled(
+            controller.group_id,
+            item_name,
+            element.state
+        )
+        
+        if success then
+            -- Re-sync to transfer system
+            CircuitRequestController.sync_group_to_transfer_system(controller.group_id)
+            
+            -- Show confirmation message
+            if element.state then
+                player.print({"gui.item-enabled", game.item_prototypes[item_name] and game.item_prototypes[item_name].localised_name or item_name})
+            else
+                player.print({"gui.item-disabled", game.item_prototypes[item_name] and game.item_prototypes[item_name].localised_name or item_name})
+            end
+        else
+            player.print(err)
+        end
+    end
 end
 
 return CircuitRequestController

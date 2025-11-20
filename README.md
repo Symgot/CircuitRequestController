@@ -40,16 +40,24 @@ When you open a Circuit Request Controller entity, you can:
    - See all items being requested via circuit signals
    - View minimum and maximum quantities for each item
    - Items marked with "*" have custom overrides
+   - Enable/disable individual items using the checkboxes
 
-4. **Item-Specific Overrides**:
+4. **Enable/Disable Items**:
+   - Use the checkbox next to each item to enable or disable it
+   - Disabled items remain in the group but are not synchronized to the transfer system
+   - This allows you to temporarily pause requests without changing items
+
+5. **Item-Specific Overrides**:
    - Click "Edit" next to any item to set custom values
    - Set a custom buffer multiplier for that specific item
    - Or set a fixed maximum quantity (overrides the multiplier calculation)
    - Entity-level adjustments have higher priority than controller settings
 
-5. **Reset Overrides**:
+6. **Reset Overrides**:
    - Click "Reset" next to items with overrides
    - This reverts the item back to using controller default settings
+
+**Note**: When a logistics group is controlled by a circuit controller, the items in the group are locked and cannot be added or removed. However, you can still adjust multipliers and enable/disable individual items.
 
 ### With TransferRequestSystem Mod
 
@@ -100,6 +108,21 @@ local success = remote.call("CircuitRequestController", "remove_item_override",
 -- Get all item overrides for a controller
 local overrides = remote.call("CircuitRequestController", "get_item_overrides",
     controller_unit_number)
+
+-- Update multipliers for a locked group (without changing items)
+local success, err = remote.call("CircuitRequestController", "update_group_multipliers",
+    group_id, {
+        ["iron-plate"] = 2.5,
+        ["copper-plate"] = 3.0
+    })
+
+-- Enable/disable specific items in a group
+local success, err = remote.call("CircuitRequestController", "set_item_enabled",
+    group_id, "iron-plate", true)
+
+-- Check if an item is enabled in a group
+local is_enabled = remote.call("CircuitRequestController", "is_item_enabled",
+    group_id, "iron-plate")
 
 -- Check if a group is locked
 local is_locked = remote.call("CircuitRequestController", "is_group_locked", group_id)

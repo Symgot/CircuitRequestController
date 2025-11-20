@@ -61,6 +61,9 @@ script.on_event(defines.events.on_gui_opened, function(event)
     if not player or not player.valid then return end
     
     if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
+        -- Close the default entity GUI that was opened
+        player.opened = nil
+        
         -- Try to use SpaceShipMod's GUI if available
         if remote.interfaces["SpaceShipMod"] and remote.interfaces["SpaceShipMod"]["create_circuit_controller_gui"] then
             remote.call("SpaceShipMod", "create_circuit_controller_gui", player, event.entity)
@@ -75,6 +78,24 @@ script.on_event(defines.events.on_gui_closed, function(event)
     local player = game.get_player(event.player_index)
     if not player or not player.valid then return end
     
+    -- Handle closing of our custom GUIs (screen elements)
+    if event.element and event.element.valid then
+        if event.element.name == "circuit-controller-gui" then
+            event.element.destroy()
+            -- Clean up player-specific GUI storage
+            if storage.gui_controllers then
+                storage.gui_controllers[player.index] = nil
+            end
+        elseif event.element.name == "item-edit-gui" then
+            event.element.destroy()
+            -- Clean up edit item storage
+            if storage.gui_edit_items then
+                storage.gui_edit_items[player.index] = nil
+            end
+        end
+    end
+    
+    -- Handle entity GUI closed (shouldn't happen since we override it, but just in case)
     if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
         if player.gui.screen["circuit-controller-gui"] then
             player.gui.screen["circuit-controller-gui"].destroy()
@@ -99,6 +120,10 @@ script.on_event(defines.events.on_gui_click, function(event)
     else
         CircuitRequestController.handle_gui_click(event)
     end
+end)
+
+script.on_event(defines.events.on_gui_checked_state_changed, function(event)
+    CircuitRequestController.handle_gui_checked_state_changed(event)
 end)
 
 script.on_event(defines.events.on_gui_text_changed, function(event)
@@ -186,5 +211,20 @@ remote.add_interface("CircuitRequestController", {
     -- Get all item overrides
     get_item_overrides = function(controller_unit_number)
         return CircuitRequestController.get_item_overrides(controller_unit_number)
+    end,
+    
+    -- Update multipliers for a locked group (without changing items)
+    update_group_multipliers = function(group_id, item_multipliers)
+        return CircuitRequestController.update_group_multipliers(group_id, item_multipliers)
+    end,
+    
+    -- Enable/disable specific items in a group
+    set_item_enabled = function(group_id, item_name, enabled)
+        return CircuitRequestController.set_item_enabled(group_id, item_name, enabled)
+    end,
+    
+    -- Check if an item is enabled in a group
+    is_item_enabled = function(group_id, item_name)
+        return CircuitRequestController.is_item_enabled(group_id, item_name)
     end
 })
