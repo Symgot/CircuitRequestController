@@ -1,5 +1,8 @@
 local CircuitRequestController = require("circuit-request-controller")
 
+-- Entity name filter for all events involving circuit-request-controller
+local entity_filter = {{filter = "name", name = "circuit-request-controller"}}
+
 -- Initialize mod when first loaded
 script.on_init(function()
     CircuitRequestController.init()
@@ -10,50 +13,26 @@ script.on_configuration_changed(function()
     CircuitRequestController.init()
 end)
 
--- Handle entity built events
-script.on_event(defines.events.on_built_entity, function(event)
-    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
-        -- Controller built, no special action needed yet
-    end
-end)
+-- Note: Build events are not registered as no action is needed when controller is built
+-- If you need to perform actions on build, add event handlers here with entity_filter
 
-script.on_event(defines.events.on_robot_built_entity, function(event)
-    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
-        -- Controller built by robot, no special action needed yet
-    end
-end)
-
-script.on_event(defines.events.on_space_platform_built_entity, function(event)
-    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
-        -- Controller built on platform, no special action needed yet
-    end
-end)
-
--- Handle entity mined events
+-- Handle entity mined events with entity filter for better performance
 script.on_event(defines.events.on_player_mined_entity, function(event)
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
-end)
+    CircuitRequestController.unregister_controller(event.entity.unit_number)
+end, entity_filter)
 
 script.on_event(defines.events.on_robot_mined_entity, function(event)
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
-end)
+    CircuitRequestController.unregister_controller(event.entity.unit_number)
+end, entity_filter)
 
 script.on_event(defines.events.on_space_platform_mined_entity, function(event)
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
-end)
+    CircuitRequestController.unregister_controller(event.entity.unit_number)
+end, entity_filter)
 
--- Handle entity destroyed
+-- Handle entity destroyed with entity filter for better performance
 script.on_event(defines.events.on_entity_died, function(event)
-    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
-end)
+    CircuitRequestController.unregister_controller(event.entity.unit_number)
+end, entity_filter)
 
 -- Handle GUI events
 script.on_event(defines.events.on_gui_opened, function(event)
