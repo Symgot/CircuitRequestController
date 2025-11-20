@@ -32,7 +32,7 @@
 
 -- Import flib modules for better mod compatibility
 local flib_gui = require("__flib__.gui")
-local flib_table = require("__flib__.table")
+-- local flib_table = require("__flib__.table")  -- Available for future use (array operations, deep_compare, etc.)
 
 local CircuitRequestController = {}
 
@@ -596,7 +596,6 @@ function CircuitRequestController.create_gui(player, controller_entity)
             end
         end
         
-        local content_elems = {}
         flib_gui.add(content, {
             {
                 type = "label",
@@ -663,7 +662,7 @@ function CircuitRequestController.create_gui(player, controller_entity)
                     style = "confirm_button"
                 }
             }
-        }, content_elems)
+        })
     else
         -- Controller is registered
         local group = storage.logistics_groups[controller.group_id]
@@ -1117,7 +1116,8 @@ function CircuitRequestController.create_item_edit_gui(player, controller_unit_n
                 horizontal_spacing = 8,
                 bottom_margin = 12
             },
-            item_display_elements
+            -- Unpack item display elements into the flow
+            table.unpack(item_display_elements)
         },
         {type = "line"},
         {

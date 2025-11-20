@@ -42,15 +42,16 @@ circuitRequestRecipe.enabled = false
 
 -- Item configuration with custom blue-tinted icon
 circuitRequestItem.localised_name = "Circuit Request Controller"
--- Create custom icon using flib's create_icons for better compatibility
+-- Create custom icon using flib's create_icons with tint for better compatibility
 local base_combinator_item = data.raw["item"]["constant-combinator"]
-circuitRequestItem.icons = flib_data_util.create_icons(base_combinator_item, {})
--- Apply blue tint to distinguish from other combinators
-if circuitRequestItem.icons then
-    for _, icon in ipairs(circuitRequestItem.icons) do
-        icon.tint = { r = 0.5, g = 0.7, b = 1.0, a = 1.0 }
-    end
-end
+circuitRequestItem.icons = flib_data_util.create_icons(base_combinator_item, {
+    -- Apply blue tint layer to distinguish from other combinators
+    {
+        icon = base_combinator_item.icon or base_combinator_item.icons[1].icon,
+        icon_size = base_combinator_item.icon_size or base_combinator_item.icons[1].icon_size,
+        tint = { r = 0.5, g = 0.7, b = 1.0, a = 1.0 }
+    }
+})
 
 -- Entity configuration
 circuitRequestEntity.localised_name = "Circuit Request Controller"

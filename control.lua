@@ -13,18 +13,8 @@ script.on_configuration_changed(function()
     CircuitRequestController.init()
 end)
 
--- Handle entity built events with entity filter for better performance
-script.on_event(defines.events.on_built_entity, function(event)
-    -- Controller built, no special action needed yet
-end, entity_filter)
-
-script.on_event(defines.events.on_robot_built_entity, function(event)
-    -- Controller built by robot, no special action needed yet
-end, entity_filter)
-
-script.on_event(defines.events.on_space_platform_built_entity, function(event)
-    -- Controller built on platform, no special action needed yet
-end, entity_filter)
+-- Note: Build events are not registered as no action is needed when controller is built
+-- If you need to perform actions on build, add event handlers here with entity_filter
 
 -- Handle entity mined events with entity filter for better performance
 script.on_event(defines.events.on_player_mined_entity, function(event)
